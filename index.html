@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>位置获取页面</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 50px;
+    }
+    button {
+      padding: 15px 30px;
+      font-size: 16px;
+      border: none;
+      background-color: #4CAF50;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #output {
+      margin-top: 20px;
+      font-size: 18px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>位置获取授权</h1>
+  <p>点击下方按钮授权获取您的当前位置</p>
+  <button onclick="getLocation()">获取位置</button>
+  <div id="output">等待授权...</div>
+
+  <script>
+    function getLocation() {
+      const output = document.getElementById("output");
+      if (!navigator.geolocation) {
+        output.innerText = "浏览器不支持地理位置功能。";
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        const lat = position.coords.latitude.toFixed(6);
+        const lon = position.coords.longitude.toFixed(6);
+        output.innerText = `纬度: ${lat}, 经度: ${lon}`;
+
+        // 可选：你自己的接收地址
+        const endpoint = "https://your-server.com/save-location";  // 替换为你自己的接收服务器
+
+        // 可选发送
+        try {
+          await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ latitude: lat, longitude: lon, timestamp: new Date().toISOString() })
+          });
+          console.log("位置信息已发送");
+        } catch (e) {
+          console.error("发送失败：", e);
+        }
+      }, (error) => {
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            output.innerText = "用户拒绝了位置请求。";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            output.innerText = "位置信息不可用。";
+            break;
+          case error.TIMEOUT:
+            output.innerText = "请求超时。";
+            break;
+          default:
+            output.innerText = "未知错误。";
+        }
+      });
+    }
+  </script>
+</body>
+</html>
