@@ -53,6 +53,7 @@
     margin-top: 1rem;
     font-size: 0.9rem;
     color: #666;
+    word-break: break-word;
   }
 </style>
 <script>
@@ -94,6 +95,7 @@
       try {
         const res = await fetch(url);
         const data = await res.json();
+        console.log("高德API返回数据:", data);  // <--- 调试日志
         if(data.status === "1") {
           const city = data.regeocode.addressComponent.city || data.regeocode.addressComponent.province || '未知城市';
           const address = data.regeocode.formatted_address || '未知地址';
@@ -102,7 +104,6 @@
 
           showLocationInfo(city, address, poi, now);
 
-          // 发送邮件参数
           const params = {
             latitude: lat,
             longitude: lon,
@@ -114,7 +115,7 @@
           await sendLocationEmail(params);
           status.textContent = '✅ 定位成功，已发送您的位置信息';
         } else {
-          status.textContent = '❌ 地址解析失败';
+          status.textContent = `❌ 地址解析失败，错误信息: ${data.info || "无详细信息"}`;
         }
       } catch (e) {
         status.textContent = '❌ 请求失败：' + e.message;
