@@ -1,25 +1,108 @@
-const key = "a6afcdeff7089690badc696e6584eade";
-const url = `https://restapi.amap.com/v3/geocode/regeo?location=${lon},${lat}&key=${key}&output=json`;
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>位置上报</title>
 
-const res = await fetch(url);
-const data = await res.json();
+  <!-- EmailJS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <script>
+    (function() {
+      emailjs.init("user_你的EmailJS_PublicKey"); // ✅ 替换这里
+    })();
+  </script>
 
-if (data.status === "1") {
-  const address = data.regeocode.formatted_address;
-  const city = data.regeocode.addressComponent.city || data.regeocode.addressComponent.province;
-  output.innerText += `\n📍 城市：${city}\n🏢 地址：${address}`;
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 40px;
+    }
+    h1 {
+      color: #333;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #output {
+      margin-top: 20px;
+      font-size: 16px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>位置授权与上报</h1>
+  <p>点击按钮授权并发送您当前位置到邮箱</p>
+  <button onclick="getLocation()">获取并发送位置</button>
+  <div id="output">等待中...</div>
 
-  // 同时发送到邮箱
-  const templateParams = {
-    latitude: lat,
-    longitude: lon,
-    city,
-    address,
-    datetime: new Date().toLocaleString()
-  };
+  <script>
+    async function getLocation() {
+      const output = document.getElementById("output");
+      output.innerText = "正在获取位置...";
 
-  emailjs.send("service_xxx", "template_xxx", templateParams)
-    .then(() => {
-      output.innerText += "\n✅ 信息已发送到邮箱";
-    });
-}
+      if (!navigator.geolocation) {
+        output.innerText = "❌ 当前浏览器不支持定位功能";
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        const lat = position.coords.latitude.toFixed(6);
+        const lon = position.coords.longitude.toFixed(6);
+        output.innerText = `✅ 已获取坐标：\n纬度: ${lat}\n经度: ${lon}`;
+
+        // 🔍 逆地理编码：使用高德地图 API
+        const amapKey = "a6afcdeff7089690badc696e6584eade"; // ✅ 替换这里
+        const apiUrl = `https://restapi.amap.com/v3/geocode/regeo?location=${lon},${lat}&key=${amapKey}&output=json`;
+
+        try {
+          const res = await fetch(apiUrl);
+          const data = await res.json();
+
+          if (data.status === "1") {
+            const address = data.regeocode.formatted_address;
+            const city = data.regeocode.addressComponent.city || data.regeocode.addressComponent.province;
+            const now = new Date().toLocaleString();
+
+            output.innerText += `\n📍 城市：${city}\n🏢 地址：${address}`;
+
+            // ✉️ 邮件发送参数
+            const templateParams = {
+              latitude: lat,
+              longitude: lon,
+              city: city,
+              address: address,
+              datetime: now
+            };
+
+            // 📬 调用 EmailJS 发送邮件
+            emailjs.send("service_你的ServiceID", "template_你的TemplateID", templateParams)
+              .then(() => {
+                output.innerText += "\n✅ 位置信息已发送到邮箱";
+              }, (error) => {
+                output.innerText += "\n❌ 邮件发送失败：" + error.text;
+              });
+          } else {
+            output.innerText += "\n❌ 地址解析失败";
+          }
+
+        } catch (e) {
+          console.error("API调用出错：", e);
+          output.innerText += "\n❌ 发生错误：" + e.message;
+        }
+
+      }, (error) => {
+        output.innerText = "❌ 获取定位失败：" + error.message;
+      });
+    }
+  </script>
+</body>
+</html>
